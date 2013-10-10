@@ -2,14 +2,14 @@
 class CreateMetrics < ActiveRecord::Migration
   def self.up
     create_table :metrics, force: true do |t|
-      t.string :metric_type
+      t.string :name
       t.date :date
       t.string :value
       t.timestamps
     end
 
-    add_index :metrics, :metric_type
-    add_index :metrics, [ :metric_type, :date ]
+    add_index :metrics, :name
+    add_index :metrics, [ :name, :date ]
   end
 
   def self.down

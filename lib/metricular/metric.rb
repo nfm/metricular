@@ -1,27 +1,27 @@
 module Metricular
   class Metric < ActiveRecord::Base
-    # Return all metric types that have been defined
+    # Return all metrics that have been defined
     def self.metrics
       @metrics
     end
 
-    # Define a new metric type for recording
-    def self.define(type, block)
+    # Define a new metric for recording
+    def self.define(name, block)
       @metrics ||= {}
-      @metrics[type] = block
-      scope type, -> { where(metric_type: type) }
+      @metrics[name] = block
+      scope name, -> { where(name: name) }
     end
 
-    # Record data for all defined metric types
+    # Record data for all defined metrics
     def self.record_all
-      @metrics.each { |type, block| record(type) }
+      @metrics.each { |name, block| record(name) }
     end
 
-    # Record data for the specified metric type, for the specified date
-    def self.record(type, date = Time.now.utc)
-      block = @metrics[type]
+    # Record data for the specified metric, for the specified date
+    def self.record(name, date = Time.now.utc)
+      block = @metrics[name]
       value = block.call(date)
-      find_or_create_by(metric_type: type, date: date) { |metric| metric.value = value }
+      find_or_create_by(name: name, date: date) { |metric| metric.value = value }
     end
 
     # Return an array of recorded metric data in [date, value] format

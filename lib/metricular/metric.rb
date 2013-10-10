@@ -6,20 +6,20 @@ module Metricular
     end
 
     # Define a new metric for recording
-    def self.define(name, block)
+    def self.define(name, block, options = {})
       @metrics ||= {}
-      @metrics[name] = block
+      @metrics[name] = [block, options]
       scope name, -> { where(name: name) }
     end
 
     # Record data for all defined metrics
     def self.record_all
-      @metrics.each { |name, block| record(name) }
+      @metrics.each { |name, _| record(name) }
     end
 
     # Record data for the specified metric, for the specified date
     def self.record(name, date = Time.now.utc)
-      block = @metrics[name]
+      block, options = @metrics[name]
       value = block.call(date)
       find_or_create_by(name: name, date: date) { |metric| metric.value = value }
     end

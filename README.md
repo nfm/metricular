@@ -1,89 +1,119 @@
-# Metricular
+## Metricular
 
 A micro-gem for recording metrics within your Rails app.
 
-## Installation
+### Installation
 
 Add this line to your application's Gemfile:
 
-    gem 'metricular'
+```ruby
+gem 'metricular'
+```
 
 And then execute:
 
-    $ bundle
+```bash
+$ bundle
+```
 
 Generate the required migration, and migrate your database:
 
-    $ ./bin/rails generate metricular:migration
-    $ ./bin/rake db:migrate
+```bash
+$ ./bin/rails generate metricular:migration
+$ ./bin/rake db:migrate
+```
 
-## Defining metrics to be recorded
+### Defining metrics to be recorded
 
-To define a metric, give it a name, and write a proc that returns that metric's value. Your proc will receive a single parameter: today's date. You can use this to help you record time-sensitive metrics (eg. yesterday's revenue).
+To define a metric, give it a name, and write a proc that returns that metric's value. Your proc will receive a today's date as a parameter. This is useful if you want to record time-based metrics (eg. yesterday's revenue).
 
 Metrics are defined using the following syntax:
 
-    Metricular::Metric.define :name, proc { |date| ... }
+```ruby
+Metricular::Metric.define :name, proc { |date| ... }
+```
 
 A few examples:
 
-    Metricular::Metric.define :daily_trial_signups, proc { |date| Account.where(created_at: ((date-1.day)..date)).count }
+```ruby
+Metricular::Metric.define :all_time_conversion_rate, proc { Account.paid / Account.count.to_f }
 
-    Metricular::Metric.define :all_time_conversion_rate, proc { |_| Account.paid / Account.count.to_f }
+Metricular::Metric.define :daily_trial_signups, proc do |date|
+  Account.where(created_at: ((date-1.day)..date)).count
+end
 
-    Metricular::Metric.define :activation_rate_within_7_days, proc do |date|
-      # Find accounts that have had 7 days to activate
-      accounts = Account.where(created_at: (date - 14.days)..(date - 7.days))
-      accounts.where(activated: true).count / accounts.count.to_f
-    end
+Metricular::Metric.define :activation_rate_within_7_days, proc do |date|
+  # Find accounts that have had 7 days to activate
+  accounts = Account.where(created_at: (date - 14.days)..(date - 7.days))
+  accounts.where(activated: true).count / accounts.count.to_f
+end
+```
 
 A good place to define your metrics is in an initializer (eg. in `config/initializers/metricular.rb`).
 
 If you're defining a lot of metrics, you can re-open the Metricular::Metric class to keep things tidy:
 
-    # config/initializers/metricular.rb
-    module Metricular
-      class Metric
-        define :foo, proc { |date| ... }
-        define :bar, proc { |date| ... }
-        define :baz, proc { |date| ... }
-      end
-    end
+```ruby
+# config/initializers/metricular.rb
+module Metricular
+  class Metric
+    define :foo, proc { |date| ... }
+    define :bar, proc { |date| ... }
+    define :baz, proc { |date| ... }
+  end
+end
+```
 
-## Recording your metrics
+### Recording your metrics
 
-Ordinarily, you'll want to schedule a cron job to record your metrics, typically once a day. The whenever gem is a good way to programatically handle this, or if you're running on Heroku, you can simply use the Heroku scheduler.
+Ordinarily, you'll want to schedule a cron job to record your metrics, typically once a day. The [whenever gem](https://github.com/javan/whenever) is a good way to do this programatically, or if you're on Heroku, you can use the [Heroku scheduler](https://devcenter.heroku.com/articles/scheduler).
 
 To record a value for every metric you have defined, simply call:
 
-    Metricular::Metric.record_all
+```ruby
+Metricular::Metric.record_all
+```
 
 Alternatively, you can record a value for a specific metric:
 
-    Metricular::Metric.record(:your_metric_name)
+```ruby
+Metricular::Metric.record(:your_metric_name)
+```
 
 The `record` method takes an optional time, which can be useful for recording metrics for past data:
 
-    Metricular::Metric.record(:your_metric_name, 1.week.ago)
+```ruby
+Metricular::Metric.record(:your_metric_name, 1.week.ago)
+```
 
-There's also a rake task included in the gem that calls the `record_all` method:
+There's also a rake task included in the gem that calls `Metricular::Metric.record_all` for you:
 
-    $ ./bin/rake metricular:record_all
+```bash
+$ ./bin/rake metricular:record_all
+```
 
-## Accessing your metrics
+### Accessing your metrics
 
-`Metricular::Metric` inherits from `ActiveRecord::Base`, so querying your metrics is easy:
+`Metricular::Metric` inherits from `ActiveRecord::Base`, so querying your metrics is easy.
 
-    # Retrieve metrics from the database
-    daily_signups_last_6_months = Metricular::Metric.where(name: :daily_trial_signups, created_at: 6.months.ago..Time.now)
+In addition, when you `define` a metric, a scope with the same name is automatically created.
 
-    # Do whatever you want with them
-    daily_signups_last_6_months.length
-    daily_signups_last_6_months.first
-    daily_signups_last_6_months.where(...)
-    daily_signups_last_6_months.select { ... }
+```ruby
+# Retrieve metrics from the database
+daily_trial_signups = Metricular::Metric.where(name: 'daily_trial_signups')
 
-## Contributing
+# Shorthand equivalent using the automatically created scope
+daily_trial_signups = Metricular::Metric.daily_trial_signups
+
+# Do whatever you want with them
+daily_trial_signups.count
+daily_trial_signups.first
+daily_trial_signups.where(created_at: 1.month.ago..Time.now)
+```
+
+Once you've accumulated some data you can graph your metrics, calculate aggregates, and query how they have changed over time.
+
+### Contributing
 
 1. Fork it
 2. Create your feature branch (`git checkout -b my-new-feature`)
